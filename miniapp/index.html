@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Matric Bot</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --navy: #16407a;
+    --navy-deep: #0d2c56;
+    --gold: #f7be18;
+    --terracotta: #d1503e;
+    --green: #0b8a3e;
+    --paper: #f6f7f9;
+    --card: #ffffff;
+    --ink: #17202b;
+    --ink-soft: #5b6672;
+    --line: #e3e7ec;
+    --radius: 14px;
+    font-size: 16px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding-bottom: 96px;
+  }
+
+  /* ---- Header, styled after moe.gov.et's institutional banner ---- */
+  header.gov{
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+    color: #fff;
+    padding: 18px 20px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  header.gov::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:0; height:4px;
+    background: linear-gradient(90deg, var(--green) 0 33%, var(--gold) 33% 66%, var(--terracotta) 66% 100%);
+  }
+  .gov-top{ display:flex; align-items:center; gap:10px; font-size:12px; opacity:.85; letter-spacing:.02em; }
+  .gov-emblem{
+    width:22px; height:22px; border-radius:50%;
+    background: conic-gradient(var(--green) 0 33%, var(--gold) 33% 66%, var(--terracotta) 66% 100%);
+    flex: none;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.5) inset;
+  }
+  .gov-title{ margin-top:10px; font-size:20px; font-weight:700; letter-spacing:-0.01em; }
+  .gov-sub{ margin-top:2px; font-size:13px; opacity:.85; }
+
+  /* ---- Step indicator ---- */
+  .steps{ display:flex; gap:6px; padding: 14px 20px 0; }
+  .steps span{
+    flex:1; height:4px; border-radius:2px; background: var(--line);
+  }
+  .steps span.done{ background: var(--gold); }
+  .steps span.active{ background: var(--navy); }
+
+  main{ padding: 18px 18px 8px; max-width: 480px; margin: 0 auto; }
+
+  .screen{ display:none; animation: rise .25s ease; }
+  .screen.active{ display:block; }
+  @keyframes rise{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{
+    font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color: var(--terracotta); margin: 4px 0 6px;
+  }
+  h1.screen-title{ font-size: 21px; margin: 0 0 6px; letter-spacing:-0.01em; }
+  p.screen-desc{ color: var(--ink-soft); font-size: 14.5px; line-height:1.5; margin: 0 0 20px; }
+
+  .field{ margin-bottom: 16px; }
+  .field label{ display:block; font-size:13px; font-weight:600; margin-bottom:6px; color: var(--ink); }
+  .field input{
+    width:100%; padding: 13px 14px; border-radius: var(--radius);
+    border: 1.5px solid var(--line); font-size: 16px; background: var(--card);
+    color: var(--ink);
+  }
+  .field input:focus{ outline:none; border-color: var(--navy); }
+
+  .card{
+    background: var(--card); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 10px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .rank-badge{
+    width:30px; height:30px; border-radius:50%; background: var(--navy); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex:none;
+  }
+  .card .name{ font-weight:600; font-size:15px; flex:1; }
+  .card button.remove{
+    border:none; background:none; color: var(--terracotta); font-size:13px; font-weight:600; padding:6px;
+  }
+  .empty-slot{
+    border:1.5px dashed var(--line); border-radius: var(--radius); padding: 16px;
+    text-align:center; color: var(--ink-soft); font-size:14px; margin-bottom: 14px;
+  }
+
+  .search-list .card{ cursor:pointer; }
+  .search-list .card:active{ background: #eef1f5; }
+
+  button.primary{
+    width:100%; padding: 15px; border-radius: var(--radius); border:none;
+    background: var(--navy); color:#fff; font-size:16px; font-weight:700;
+    letter-spacing: -0.01em;
+  }
+  button.primary:active{ background: var(--navy-deep); }
+  button.secondary{
+    width:100%; padding: 13px; border-radius: var(--radius); border:1.5px solid var(--line);
+    background: transparent; color: var(--navy); font-size:15px; font-weight:600; margin-top:8px;
+  }
+  button.gold{ background: var(--gold); color: var(--navy-deep); }
+
+  .slider-wrap{ margin: 28px 0 8px; }
+  .score-display{ text-align:center; font-size: 46px; font-weight:800; color: var(--navy); letter-spacing:-0.02em; }
+  .score-display span{ font-size:16px; font-weight:600; color: var(--ink-soft); }
+  input[type=range]{
+    width:100%; margin-top: 18px; -webkit-appearance:none; height:6px; border-radius:3px;
+    background: var(--line);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:26px; height:26px; border-radius:50%;
+    background: var(--gold); border: 3px solid var(--navy); cursor:pointer; margin-top:-10px;
+  }
+  .range-labels{ display:flex; justify-content:space-between; font-size:12px; color: var(--ink-soft); margin-top:6px; }
+
+  .result-hero{
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+    border-radius: var(--radius); color:#fff; padding: 22px 18px; margin-bottom: 16px;
+    position: relative; overflow:hidden;
+  }
+  .result-hero::after{
+    content:""; position:absolute; left:0; right:0; bottom:0; height:4px;
+    background: linear-gradient(90deg, var(--green) 0 33%, var(--gold) 33% 66%, var(--terracotta) 66% 100%);
+  }
+  .result-hero .eyebrow{ color: var(--gold); }
+  .result-hero .uni-name{ font-size: 22px; font-weight:800; margin: 4px 0 2px; }
+  .result-hero .tag{
+    display:inline-block; margin-top:8px; padding: 4px 10px; border-radius: 20px;
+    font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .tag.safety{ background: rgba(11,138,62,.2); color:#8ef0b6; }
+  .tag.match{ background: rgba(247,190,24,.2); color: var(--gold); }
+  .tag.reach{ background: rgba(209,80,62,.2); color:#ff9d8c; }
+
+  .result-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--card); border:1px solid var(--line); border-radius:12px;
+    padding: 12px 14px; margin-bottom: 8px;
+  }
+  .result-row .name{ font-weight:600; font-size:14.5px; }
+  .result-row .rank{ font-size:12px; color: var(--ink-soft); }
+  .pill{ font-size:11px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:20px; }
+  .pill.safety{ background:#e6f6ec; color: var(--green); }
+  .pill.match{ background:#fef6e2; color:#a4780a; }
+  .pill.reach{ background:#fbe9e6; color: var(--terracotta); }
+
+  .disclaimer{
+    font-size: 12px; color: var(--ink-soft); text-align:center; margin: 16px 0 4px; line-height:1.5;
+  }
+
+  .bottom-bar{
+    position: fixed; left:0; right:0; bottom:0; padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(246,247,249,0) 0%, var(--paper) 30%);
+    max-width: 480px; margin: 0 auto;
+  }
+</style>
+</head>
+<body>
+
+<header class="gov">
+  <div class="gov-top">
+    <div class="gov-emblem"></div>
+    <span>Matric Bot · Placement Prediction</span>
+  </div>
+  <div class="gov-title" id="headerTitle">Predict my placement</div>
+  <div class="gov-sub" id="headerSub">Grade 12 university placement, estimated from your score and choices</div>
+</header>
+
+<div class="steps">
+  <span id="step-1" class="active"></span>
+  <span id="step-2"></span>
+  <span id="step-3"></span>
+  <span id="step-4"></span>
+</div>
+
+<main>
+
+  <!-- Screen 1: Register -->
+  <section class="screen active" id="screen-register">
+    <div class="eyebrow">Step 1 of 4</div>
+    <h1 class="screen-title">Confirm your details</h1>
+    <p class="screen-desc">We only ask once — this is shared with "Wait for my result" too.</p>
+
+    <div class="field">
+      <label for="fullName">Full name</label>
+      <input id="fullName" type="text" placeholder="As written on your exam card" />
+    </div>
+    <div class="field">
+      <label for="regNumber">Registration number</label>
+      <input id="regNumber" type="text" placeholder="e.g. ET-2018-004215" />
+    </div>
+
+    <button class="primary" onclick="submitRegister()">Continue</button>
+  </section>
+
+  <!-- Screen 2: Preference list -->
+  <section class="screen" id="screen-prefs">
+    <div class="eyebrow">Step 2 of 4</div>
+    <h1 class="screen-title">Rank your universities</h1>
+    <p class="screen-desc">Tap a slot to add. Tap ✕ to remove. Order matters — 1st choice is where you'd go if you got in everywhere.</p>
+
+    <div id="prefList"></div>
+    <button class="secondary" onclick="openSearch()">+ Add a university</button>
+
+    <div id="searchPane" style="display:none; margin-top:16px;">
+      <div class="field"><input id="searchInput" placeholder="Search universities…" oninput="renderSearch()"/></div>
+      <div class="search-list" id="searchResults"></div>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="primary" id="toSliderBtn" onclick="goToSlider()" disabled>Continue</button>
+    </div>
+  </section>
+
+  <!-- Screen 3: Score slider -->
+  <section class="screen" id="screen-slider">
+    <div class="eyebrow">Step 3 of 4</div>
+    <h1 class="screen-title">Estimate your score</h1>
+    <p class="screen-desc">Slide to guess — the result below updates instantly. Not sure? Start in the middle.</p>
+
+    <div class="slider-wrap">
+      <div class="score-display"><span id="scoreVal">480</span></div>
+      <input type="range" id="scoreSlider" min="200" max="700" step="1" value="480" oninput="onSlide(this.value)"/>
+      <div class="range-labels"><span>200</span><span>700</span></div>
+    </div>
+
+    <div id="livePreview"></div>
+
+    <div class="bottom-bar">
+      <button class="primary" onclick="goToResult()">See full result</button>
+    </div>
+  </section>
+
+  <!-- Screen 4: Result -->
+  <section class="screen" id="screen-result">
+    <div class="eyebrow">Step 4 of 4</div>
+    <h1 class="screen-title">Your likely outcome</h1>
+    <p class="screen-desc">Based on last year's cutoffs (or a rough estimate where we don't have data yet).</p>
+
+    <div id="resultHero"></div>
+    <div id="resultList"></div>
+
+    <p class="disclaimer">This is an estimate based on past results — not a guarantee of placement.</p>
+
+    <button class="secondary" onclick="goTo('prefs')">Edit my list</button>
+  </section>
+
+</main>
+
+<script>
+/* ============================================================
+   Telegram WebApp init
+   ============================================================ */
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+/* ============================================================
+   predictOutcome — mirrors src/predictionCore.js exactly.
+   Keep these two files in sync; this is the browser copy.
+   ============================================================ */
+const MATCH_MARGIN = 15;
+
+function roughEstimateFromCapacity(u) {
+  if (u.total_seats < 500) return 550;
+  if (u.total_seats < 2000) return 480;
+  return 420;
+}
+
+function predictOutcome(score, rankedUniversities) {
+  return rankedUniversities.map((university) => {
+    const cutoff = university.cutoff ?? roughEstimateFromCapacity(university);
+    const difference = score - cutoff;
+    let tag;
+    if (difference > MATCH_MARGIN) tag = 'safety';
+    else if (difference >= -MATCH_MARGIN) tag = 'match';
+    else tag = 'reach';
+    return { university, tag, cutoff_used: cutoff };
+  });
+}
+
+/* ============================================================
+   Data layer — swap this block for real Supabase calls.
+   Anon key only (never the service key) — RLS must restrict
+   students to their own rows. Demo data below unblocks UI work
+   before the backend is wired up.
+   ============================================================ */
+const ALL_UNIVERSITIES = [
+  { id: 'aau', name: 'Addis Ababa University', total_seats: 1800, cutoff: 512 },
+  { id: 'jimma', name: 'Jimma University', total_seats: 2400, cutoff: 431 },
+  { id: 'bdu', name: 'Bahir Dar University', total_seats: 2100, cutoff: 445 },
+  { id: 'hu', name: 'Haramaya University', total_seats: 2600 }, // no cutoff yet -> roughEstimate
+  { id: 'mu', name: 'Mekelle University', total_seats: 1900, cutoff: 468 },
+  { id: 'au', name: 'Adama Science & Technology University', total_seats: 900, cutoff: 495 },
+];
+
+let state = {
+  fullName: '',
+  regNumber: '',
+  preferences: [], // ordered list of university objects
+  score: 480,
+};
+
+/* ============================================================
+   Screen navigation
+   ============================================================ */
+const stepMap = { register: 1, prefs: 2, slider: 3, result: 4 };
+const titles = {
+  register: ['Confirm your details', 'One-time registration'],
+  prefs: ['Rank your universities', 'Order sets your priority'],
+  slider: ['Estimate your score', 'Drag to see live results'],
+  result: ['Your likely outcome', 'Safety, match, or reach'],
+};
+
+function goTo(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelectorAll('.steps span').forEach((el, i) => {
+    el.classList.toggle('active', i === stepMap[name] - 1);
+    el.classList.toggle('done', i < stepMap[name] - 1);
+  });
+  document.getElementById('headerTitle').textContent = titles[name][0];
+  document.getElementById('headerSub').textContent = titles[name][1];
+}
+
+/* ---- Register ---- */
+function submitRegister() {
+  const fullName = document.getElementById('fullName').value.trim();
+  const regNumber = document.getElementById('regNumber').value.trim();
+  if (!fullName || !regNumber) {
+    tg?.HapticFeedback?.notificationOccurred('error');
+    return;
+  }
+  state.fullName = fullName;
+  state.regNumber = regNumber;
+  // TODO: supabase.from('students').update({ full_name, registration_number })
+  //       .eq('telegram_id', tg.initDataUnsafe.user.id)
+  renderPrefs();
+  goTo('prefs');
+}
+
+/* ---- Preferences ---- */
+function renderPrefs() {
+  const list = document.getElementById('prefList');
+  list.innerHTML = '';
+  state.preferences.forEach((u, i) => {
+    const row = document.createElement('div');
+    row.className = 'card';
+    row.innerHTML = `
+      <div class="rank-badge">${i + 1}</div>
+      <div class="name">${u.name}</div>
+      <button class="remove" onclick="removePref(${i})">✕</button>`;
+    list.appendChild(row);
+  });
+  if (state.preferences.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-slot';
+    empty.textContent = 'No universities yet — add at least one to continue.';
+    list.appendChild(empty);
+  }
+  document.getElementById('toSliderBtn').disabled = state.preferences.length === 0;
+}
+
+function removePref(i) {
+  state.preferences.splice(i, 1);
+  renderPrefs();
+}
+
+function openSearch() {
+  const pane = document.getElementById('searchPane');
+  pane.style.display = pane.style.display === 'none' ? 'block' : 'none';
+  renderSearch();
+}
+
+function renderSearch() {
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const chosen = new Set(state.preferences.map(u => u.id));
+  const results = ALL_UNIVERSITIES.filter(u =>
+    !chosen.has(u.id) && u.name.toLowerCase().includes(q)
+  );
+  const box = document.getElementById('searchResults');
+  box.innerHTML = results.map(u => `
+    <div class="card" onclick="addPref('${u.id}')">
+      <div class="name">${u.name}</div>
+    </div>`).join('') || '<p style="color:var(--ink-soft); font-size:14px;">No matches.</p>';
+}
+
+function addPref(id) {
+  const u = ALL_UNIVERSITIES.find(x => x.id === id);
+  state.preferences.push(u);
+  document.getElementById('searchPane').style.display = 'none';
+  document.getElementById('searchInput').value = '';
+  renderPrefs();
+  // TODO: supabase.from('preferences').insert({ student_id, university_id: id, rank_order: state.preferences.length })
+}
+
+function goToSlider() {
+  document.getElementById('scoreSlider').value = state.score;
+  onSlide(state.score);
+  goTo('slider');
+}
+
+/* ---- Slider (live prediction) ---- */
+function onSlide(value) {
+  state.score = Number(value);
+  document.getElementById('scoreVal').innerHTML = `${value}<span> / 700</span>`;
+  const results = predictOutcome(state.score, state.preferences);
+  const top = results[0];
+  document.getElementById('livePreview').innerHTML = top ? `
+    <div class="card" style="justify-content:space-between;">
+      <div class="name">${top.university.name}</div>
+      <span class="pill ${top.tag}">${top.tag}</span>
+    </div>` : '';
+}
+
+/* ---- Result ---- */
+function goToResult() {
+  const results = predictOutcome(state.score, state.preferences);
+  const top = results[0];
+
+  document.getElementById('resultHero').innerHTML = top ? `
+    <div class="result-hero">
+      <div class="eyebrow">Most likely</div>
+      <div class="uni-name">${top.university.name}</div>
+      <span class="tag ${top.tag}">${top.tag}</span>
+    </div>` : '';
+
+  document.getElementById('resultList').innerHTML = results.slice(1).map((r, i) => `
+    <div class="result-row">
+      <div>
+        <div class="name">${r.university.name}</div>
+        <div class="rank">Choice #${i + 2}</div>
+      </div>
+      <span class="pill ${r.tag}">${r.tag}</span>
+    </div>`).join('');
+
+  goTo('result');
+  tg?.HapticFeedback?.notificationOccurred('success');
+}
+
+renderPrefs();
+</script>
+</body>
+</html>
